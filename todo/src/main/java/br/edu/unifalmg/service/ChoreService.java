@@ -4,23 +4,12 @@ import br.edu.unifalmg.domain.Chore;
 import br.edu.unifalmg.enumerator.ChoreFilter;
 import br.edu.unifalmg.exception.*;
 import br.edu.unifalmg.repository.ChoreRepository;
-import com.fasterxml.jackson.core.ObjectCodec;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.lang.reflect.Type;
-import java.nio.channels.FileLockInterruptionException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -53,7 +42,12 @@ public class ChoreService {
      * @throws DuplicatedChoreException When the given chore already exists
      */
     public Chore addChore(String description, LocalDate deadline) {
-        verifyChore(description,deadline);
+        if (Objects.isNull(description) || description.isEmpty()) {
+            throw new InvalidDescriptionException("The description cannot be null or empty");
+        }
+        if (Objects.isNull(deadline) || deadline.isBefore(LocalDate.now())) {
+            throw new InvalidDeadlineException("The deadline cannot be null or before the current date");
+        }
         for (Chore chore : chores) {
             if (chore.getDescription().equals(description)
                     && chore.getDeadline().isEqual(deadline)) {
@@ -87,7 +81,7 @@ public class ChoreService {
 //         chore.setDeadline(deadline);
 //         chore.setIsCompleted(Boolean.FALSE);
 
-
+        repository.save(chore);
         chores.add(chore);
         return chore;
     }
@@ -148,6 +142,12 @@ public class ChoreService {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * Filter the chores by its status
+     *
+     * @param filter COMPLETED, UNCOMPLETED or ALL
+     * @return A list with the filtered chores
+     */
     public List<Chore> filterChores(ChoreFilter filter) {
         switch (filter) {
             case COMPLETED:
@@ -159,43 +159,6 @@ public class ChoreService {
                 return this.chores;
         }
     }
-
-    public String displayChores(){
-        if(isChoreListEmpty.test(chores)){
-            System.out.println("No chores to display");
-            return "No chores to display\n";
-        }
-        System.out.println(this.toString());
-        return this.toString();
-    }
-
-    public void changeChore(String description, LocalDate deadline, String changedDescription, LocalDate changedDeadline){
-        verifyChore(changedDescription,changedDeadline);
-        boolean isChoreExist = this.chores.stream().anyMatch((chore) -> chore.getDescription().equals(description) && chore.getDeadline().isEqual(deadline));
-        if (!isChoreExist) {
-            throw new ChoreNotFoundException("Chore not found. Impossible to toggle!");
-        }
-        this.chores = this.chores.stream().map(chore -> {
-            if (!chore.getDescription().equals(description) && !chore.getDeadline().isEqual(deadline)) {
-                return chore;
-            }
-            chore.setDescription(changedDescription);
-            chore.setDeadline(changedDeadline);
-            return chore;
-        }).collect(Collectors.toList());
-
-    }
-
-    private final Predicate<List<Chore>> isChoreListEmpty = List::isEmpty;
-
-    private void verifyChore(String description, LocalDate deadline){
-        if (Objects.isNull(description) || description.isEmpty())
-            throw new InvalidDescriptionException("The description cannot be null or empty");
-
-        if (Objects.isNull(deadline) || deadline.isBefore(LocalDate.now()))
-            throw new InvalidDeadlineException("The deadline cannot be null or before the current date");
-    }
-
 
     /**
      * Load the chores from the repository.
@@ -212,15 +175,9 @@ public class ChoreService {
      *         FALSE, when the save fails
      */
     public Boolean saveChores() {
-        return repository.save(this.chores);
+        return repository.saveAll(this.chores);
     }
 
-
-    @Override
-    public String toString(){
-        StringBuilder choresInformation = new StringBuilder();
-        this.chores.forEach(chore-> choresInformation.append(chore.toString()).append("\n"));
-        return choresInformation.toString();
-    }
+    private final Predicate<List<Chore>> isChoreListEmpty = choreList -> choreList.isEmpty();
 
 }

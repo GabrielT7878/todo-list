@@ -13,6 +13,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -65,7 +66,9 @@ public class ChoreServiceTest {
     @Test
     @DisplayName("#addChore > When adding a chore > When the chore already exists > Throw an exception")
     void addChoreWhenAddingAChoreWhenTheChoreAlreadyExistsThrowAnException() {
-        ChoreService service = new ChoreService();
+        Mockito.when(
+                repository.save(new Chore("Description", Boolean.FALSE, LocalDate.now()))
+        ).thenReturn(Boolean.TRUE);
         service.addChore("Description", LocalDate.now());
         assertThrows(DuplicatedChoreException.class,
                 () -> service.addChore("Description", LocalDate.now()));
@@ -86,7 +89,12 @@ public class ChoreServiceTest {
     @Test
     @DisplayName("#addChore > When the chore's list has at least one element > When adding a new chore > Add the chore")
     void addChoreWhenTheChoresListHasAtLeastOneElementWhenAddingANewChoreAddTheChore() {
-        ChoreService service = new ChoreService();
+        Mockito.when(
+                repository.save(new Chore("Chore #01", Boolean.FALSE, LocalDate.now()))
+        ).thenReturn(Boolean.TRUE);
+        Mockito.when(
+                repository.save(new Chore("Chore #02", Boolean.FALSE, LocalDate.now().plusDays(2)))
+        ).thenReturn(Boolean.TRUE);
         service.addChore("Chore #01", LocalDate.now());
         service.addChore("Chore #02", LocalDate.now().plusDays(2));
         assertAll(
@@ -260,162 +268,34 @@ public class ChoreServiceTest {
     }
 
     @Test
-    @DisplayName("#printChores > When the list is  empty > print: No chores to display")
-    void printChoresWhenTheListIsEmptyPrintNoChoresToDisplay() {
-        ChoreService service = new ChoreService();
-        assertEquals("No chores to display\n",service.displayChores());
-    }
-
-    @Test
-    @DisplayName("#printChores > When the list has one chore and it has completed status > print the information about the chore ")
-    void printChoresWhenTheListHasOneChoreAndItHasCompletedStatusPrintTheInformationAboutTheChore() {
-        ChoreService service = new ChoreService();
-        service.addChore("Escrever teste",LocalDate.of(2023,10,29));
-        service.getChores().get(0).setIsCompleted(true);
-        assertEquals("Descrição: Escrever teste Deadline: 29/10/2023 Status: Completa\n",service.displayChores());
-    }
-
-    @Test
-    @DisplayName("#printChores > When the list has one chore and it has uncompleted status > print the information about the chore ")
-    void printChoresWhenTheListHasOneChoreAndItHasUncompletedStatusPrintTheInformationAboutTheChore() {
-        ChoreService service = new ChoreService();
-        service.addChore("Escrever teste",LocalDate.of(2023,10,29));
-        assertEquals("Descrição: Escrever teste Deadline: 29/10/2023 Status: Incompleta\n",service.displayChores());
-    }
-
-    @Test
-    @DisplayName("#printChores > When the list has more than one chore > print the information about the chores")
-    void printChoresWhenTheListHasMoreThanOneChorePrintTheInformationAboutTheChores() {
-        ChoreService service = new ChoreService();
-        service.addChore("Escrever teste", LocalDate.of(2023, 10, 29));
-        service.getChores().get(0).setIsCompleted(true);
-        service.addChore("Implementar código", LocalDate.of(2023, 10, 12));
-        assertEquals("Descrição: Escrever teste Deadline: 29/10/2023 Status: Completa\n" +
-                              "Descrição: Implementar código Deadline: 12/10/2023 Status: Incompleta\n",
-                               service.displayChores());
-    }
-
-    @Test
-    @DisplayName("#changeChore > When the description is invalid > throw an exception ")
-    void changeChoreWhenTheDescriptionIsInvalidThrowAnException() {
-        ChoreService service = new ChoreService();
-        service.addChore("Description",LocalDate.now());
-        String choreDescription = service.getChores().get(0).getDescription();
-        LocalDate choreDate = service.getChores().get(0).getDeadline();
+    @DisplayName("#loadChores > When the chores are loaded > Update the chore list")
+    void loadChoresWhenTheChoresAreLoadedUpdateTheChoreList() {
+        Mockito.when(repository.load()).thenReturn(new ArrayList<>() {{
+            add(new Chore("Chore #01", Boolean.FALSE, LocalDate.now()));
+            add(new Chore("Chore #02", Boolean.TRUE, LocalDate.now().minusDays(2)));
+        }});
+        service.loadChores();
+//        int size = service.getChores().size();
+//        assertEquals(2, size);
+        List<Chore> loadedChores = service.getChores();
         assertAll(
-                ()-> assertThrows(InvalidDescriptionException.class, () -> {
-                    service.changeChore(choreDescription,choreDate, null ,choreDate);
-                }),
-                ()-> assertThrows(InvalidDescriptionException.class, () -> {
-                    service.changeChore(choreDescription,choreDate,"",choreDate);
-                })
-        );
-
-    }
-
-    @Test
-    @DisplayName("#changeChore > When deadline is Invalid > throw an exception")
-    void changeChoreWhenDeadlineIsInvalidThrowException() {
-
-        ChoreService service = new ChoreService();
-        service.addChore("Original Description", LocalDate.now());
-        String choreDescription = service.getChores().get(0).getDescription();
-        LocalDate choreDate = service.getChores().get(0).getDeadline();
-
-        assertThrows(InvalidDeadlineException.class, () -> service.changeChore(choreDescription,choreDate,choreDescription,LocalDate.now().minusDays(5)));
-    }
-
-    @Test
-    @DisplayName("#changeChore > When change only the description and it is valid > change chore description")
-    void changeChoreWhenChangeOnlyTheDescriptionAndItIsValidChangeDescription() {
-        ChoreService service = new ChoreService();
-        String originalDescription = "Original Description";
-        service.addChore(originalDescription, LocalDate.now());
-        String choreDescription = service.getChores().get(0).getDescription();
-        LocalDate choreDate = service.getChores().get(0).getDeadline();
-        String newDescription = "New Description";
-        service.changeChore(choreDescription,choreDate,newDescription,choreDate);
-
-        assertTrue(service.getChores().get(0).getDescription().equals(newDescription));
-    }
-
-    @Test
-    @DisplayName("#changeChore > When change only the deadline and it is valid > change chore deadline")
-    void changeChoreWhenChangeOnlyTheDeadlineAndItIsValidChangeDescription() {
-        ChoreService service = new ChoreService();
-        LocalDate originalDate = LocalDate.now();
-
-        service.addChore("Description", originalDate);
-
-        String choreDescription = service.getChores().get(0).getDescription();
-        LocalDate choreDate = service.getChores().get(0).getDeadline();
-
-        LocalDate newDate = LocalDate.now().plusDays(3);
-
-        service.changeChore(choreDescription,choreDate,choreDescription,newDate);
-
-        assertEquals(newDate, service.getChores().get(0).getDeadline());
-    }
-
-    @Test
-    @DisplayName("#changeChore > When chore with given description and deadline does not exist > throw an exception")
-    void changeChoreWhenChoreWithGivenDescriptionDoesNotExistThrowException() {
-
-        ChoreService service = new ChoreService();
-
-        service.addChore("Description", LocalDate.now().plusDays(2));
-        String choreDescription = service.getChores().get(0).getDescription();
-        LocalDate choreDate = service.getChores().get(0).getDeadline();
-        assertThrows(ChoreNotFoundException.class, () -> {
-            service.changeChore("Nonexistent Chore", LocalDate.now(),"Test",LocalDate.now().plusDays(3));
-        });
-    }
-
-    @Test
-    @DisplayName("#changeChore > When change the deadline and the description and it is valid > change chore deadline and description")
-    void changeChoreWhenChangeTheDeadlineAndDescriptionItIsValidChangeDeadlineAndDescription() {
-        ChoreService service = new ChoreService();
-        LocalDate originalDate = LocalDate.now();
-        service.addChore("Description", originalDate);
-
-        LocalDate newDate = LocalDate.now().plusDays(3);
-        String newDescription = "New Description";
-
-        service.changeChore(service.getChores().get(0).getDescription(),service.getChores().get(0).getDeadline(),newDescription,newDate);
-        assertAll(
-                ()-> assertEquals(newDescription, service.getChores().get(0).getDescription()),
-                () -> assertEquals(newDate, service.getChores().get(0).getDeadline())
+                () -> assertEquals(2, loadedChores.size()),
+                () -> assertEquals("Chore #01", loadedChores.get(0).getDescription()),
+                () -> assertEquals(Boolean.FALSE, loadedChores.get(0).getIsCompleted()),
+                () -> assertEquals(LocalDate.now(), loadedChores.get(0).getDeadline()),
+                () -> assertEquals("Chore #02", loadedChores.get(1).getDescription()),
+                () -> assertEquals(Boolean.TRUE, loadedChores.get(1).getIsCompleted()),
+                () -> assertEquals(LocalDate.now().minusDays(2), loadedChores.get(1).getDeadline())
         );
     }
 
     @Test
-    @DisplayName("#save > When the list is empty > return true")
-    void saveWhenTheListIsEmptyReturnTrue(){
-        ChoreService service = new ChoreService(repository);
-        List<Chore> chores = service.getChores();
-        Mockito.when(this.repository.save(chores)).thenReturn(true);
-        assertTrue(service::saveChores);
+    @DisplayName("#loadChores > When no chores are loaded > Update the chore list")
+    void loadChoresWhenNoChoresAreLoadedUpdateTheChoreList() {
+        Mockito.when(repository.load()).thenReturn(new ArrayList<>());
+        service.loadChores();
+        List<Chore> loadChores = service.getChores();
+        assertTrue(loadChores.isEmpty());
     }
-
-    @Test
-    @DisplayName("#save > When the list has one chore > return true")
-    void saveWhenTheListHasOneChoreReturnTrue(){
-        ChoreService service = new ChoreService(repository);
-        service.getChores().add(Chore.builder().description("test save").deadline(LocalDate.now().plusDays(3)).build());
-        List<Chore> chores = service.getChores();
-        Mockito.when(this.repository.save(chores)).thenReturn(true);
-        assertTrue(service::saveChores);
-    }
-
-    @Test
-    @DisplayName("#save > When the repository fails > return false")
-    void saveWhenTheRepositoryFailsReturnFalse(){
-        ChoreService service = new ChoreService(repository);
-        List<Chore> chores = service.getChores();
-        Mockito.when(this.repository.save(chores)).thenReturn(false);
-        assertFalse(service::saveChores);
-    }
-
-
 
 }
